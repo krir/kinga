@@ -1,0 +1,79 @@
+# Kinga — essential-medicine stock-out early warning
+
+*Kinga* is Swahili for "protect". This prototype helps a county health team see which
+facilities are about to run out of essential medicines, why, and what to do about it
+before patients are turned away.
+
+> **Prototype on synthetic data.** No real facility, stock or patient data is used.
+
+## What it does
+
+1. **Forecasts demand** for six tracer medicines (malaria, antibiotics, ORS/zinc,
+   oxytocin, HIV treatment, family planning) across 10 facilities in 3 counties, from
+   12 months of consumption history.
+2. **Scores stock-out risk** against each facility's resupply lead time:
+   - **Critical**: stock runs out before a normal order can arrive
+   - **High**: less than half a month of buffer beyond lead time
+   - **Watch**: under 2.5 months of stock
+   - **Overstock**: over 6 months, a sign of expiry and wastage risk
+3. **Suggests redistribution**: moves surplus from nearby facilities in the same county,
+   never leaving a donor below three months of stock, and skips transfers too small to
+   justify a trip.
+4. **Explains each warning in plain language** with an LLM (Llama 3.1 8B on Cloudflare
+   Workers AI), written for a county pharmacist.
+
+## Method
+
+| Step | Approach |
+|---|---|
+| Demand forecast | Holt linear exponential smoothing (α 0.5, β 0.3), 3-month horizon |
+| Seasonality | Malaria medicines are de-seasonalised with a long-rains index, forecast, then re-seasonalised |
+| Trend | Quarter-on-quarter change on seasonally adjusted demand |
+| Months of stock | Stock on hand ÷ mean forecast demand |
+| Stock-out date | Month-by-month walk-forward of stock against forecast |
+
+The rules are deliberately simple and auditable. A pharmacist can check every number by hand.
+
+## Responsible AI
+
+- **Grounded:** the model receives only the computed figures for one item and is
+  instructed not to invent numbers, facilities or causes. Possible causes must be
+  labelled as things to verify.
+- **Human in the loop:** the AI explains, it does not decide. Every output ends with an
+  instruction to verify against the stock card.
+- **Graceful fallback:** if the AI service is unavailable, a rule-based summary is shown,
+  clearly labelled as such.
+- **Privacy:** no personal data is involved; facility-level aggregates only.
+- **Input limits:** the API accepts small validated JSON only (4 KB cap).
+
+## Limitations and next steps
+
+- Synthetic data. Next: connect to KHIS / LMIS reports (monthly consumption and stock
+  on hand by facility) through their APIs.
+- Lead times are fixed per facility level. Next: learn them from actual delivery records.
+- Transfers ignore distance and road access within a county. Next: add travel time.
+- Validate forecast accuracy (MAPE) against held-out months on real data.
+- Co-design thresholds and wording with county pharmacists before any use.
+
+## Stack
+
+React + TypeScript (Vite) dashboard, a Cloudflare Worker for the `/api/explain`
+endpoint, and Workers AI for the LLM. Deployed on Cloudflare.
+
+```
+src/data.ts      synthetic facilities, medicines and consumption
+src/engine.ts    forecast, risk, transfers, rule-based summary
+src/App.tsx      dashboard
+worker/index.ts  API route + grounded prompt
+```
+
+## Run and deploy
+
+```powershell
+npm install
+npm run dev        # dashboard at localhost:5173 (assistant shows the rule-based summary)
+npx wrangler login
+npm run deploy     # dashboard + AI at kinga.kennedykorir.com
+```
+
+© 2026 Kennedy Korir. All rights reserved. See [LICENSE](LICENSE).
