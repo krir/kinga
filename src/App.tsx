@@ -47,7 +47,7 @@ export default function App() {
   const [selected, setSelected] = useState<Assessment | null>(
     () => items.filter((a) => a.risk === 'critical').sort((a, b) => a.monthsOfStock - b.monthsOfStock)[0] ?? null,
   )
-  const [ai, setAi] = useState<{ state: 'idle' | 'loading' | 'done' | 'fallback'; text: string }>({ state: 'idle', text: '' })
+  const [ai, setAi] = useState<{ state: 'idle' | 'loading' | 'done' | 'fallback'; text: string; model?: string }>({ state: 'idle', text: '' })
 
   const filtered = items
     .filter((a) => county === 'All counties' || a.county === county)
@@ -91,9 +91,9 @@ export default function App() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(facts),
       })
-      const data = (await res.json()) as { text?: string }
+      const data = (await res.json()) as { text?: string; model?: string | null }
       if (!res.ok || !data.text) throw new Error('no text')
-      setAi({ state: 'done', text: data.text })
+      setAi({ state: 'done', text: data.text, model: data.model?.split('/').pop() })
     } catch {
       setAi({ state: 'fallback', text: ruleSummary(a, transfers) })
     }
@@ -231,7 +231,9 @@ export default function App() {
               {(ai.state === 'done' || ai.state === 'fallback') && (
                 <div className="ai-out">
                   <p className="ai-tag">
-                    {ai.state === 'done' ? 'AI-generated from the figures above · check before acting' : 'Rule-based summary (AI assistant runs on the deployed version)'}
+                    {ai.state === 'done' && ai.model
+                      ? `Figures and steps: Kinga’s rules · patient note: AI (${ai.model}) · check before acting`
+                      : 'Figures and steps: Kinga’s rules · standard patient note (AI unavailable)'}
                   </p>
                   <p>{ai.text}</p>
                 </div>

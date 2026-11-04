@@ -21,8 +21,9 @@ before patients are turned away.
 4. **Suggests redistribution**: moves surplus from nearby facilities in the same county,
    never leaving a donor below three months of stock, and skips transfers too small to
    justify a trip.
-5. **Explains each warning in plain language** with an LLM (Llama 3.1 8B on Cloudflare
-   Workers AI), written for a county pharmacist.
+5. **Explains each warning in plain language** for a county pharmacist: the figures and
+   steps come from the rules, with a patient-impact note from an LLM on Cloudflare Workers AI
+   (Llama 3.1 8B fast, with GLM-4.7 Flash and Gemma 4 as fallbacks).
 
 ## Open API
 
@@ -62,13 +63,15 @@ The rules are deliberately simple and auditable. A pharmacist can check every nu
 
 ## Responsible AI
 
-- **Grounded:** the model receives only the computed figures for one item and is
-  instructed not to invent numbers, facilities or causes. Possible causes must be
-  labelled as things to verify.
+- **Numbers never come from the model:** every figure, date and next step in an
+  explanation is written by Kinga's rules. The AI writes only a short note on why the
+  situation matters for patients.
+- **Checked output:** the AI note is rejected if it contains any number, a next step or
+  an accusation, and a standard note is used instead.
 - **Human in the loop:** the AI explains, it does not decide. Every output ends with an
-  instruction to verify against the stock card.
-- **Graceful fallback:** if the AI service is unavailable, a rule-based summary is shown,
-  clearly labelled as such.
+  instruction to verify against the stock card, and the label says which part is AI.
+- **Graceful fallback:** if the AI service is unavailable, the same answer is shown with a
+  standard patient note, clearly labelled.
 - **Privacy:** no personal data is involved; facility-level aggregates only.
 - **Input limits:** the API accepts small validated JSON only (4 KB cap).
 
