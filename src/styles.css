@@ -15,6 +15,8 @@
   --watch-bg: #fdf4cf;
   --over: #1d5f9e;
   --over-bg: #e2eefa;
+  --spike: #7a2e8c;
+  --spike-bg: #f3e6f6;
   --ok: #3b6b5a;
   --ok-bg: #e5f1ec;
   --display: 'Fraunces', Georgia, serif;
@@ -43,7 +45,7 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--s
 .synthetic { margin: 0; font-family: var(--mono); font-size: 12px; background: var(--amber); color: var(--pine); padding: 5px 10px; border-radius: 999px; }
 
 /* Summary tiles */
-.tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.tiles { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
 .tile { background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--line); border-radius: 0 0 8px 8px; padding: 10px 14px; display: flex; flex-direction: column; gap: 2px; }
 .tile strong { font-family: var(--display); font-weight: 600; font-size: 30px; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .tile span { font-size: 12.5px; color: var(--ink-soft); }
@@ -51,6 +53,7 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--s
 .t-high { border-top-color: var(--high); } .t-high strong { color: var(--high); }
 .t-watch { border-top-color: var(--watch); } .t-watch strong { color: var(--watch); }
 .t-over { border-top-color: var(--over); } .t-over strong { color: var(--over); }
+.t-spike { border-top-color: var(--spike); } .t-spike strong { color: var(--spike); }
 .t-move { border-top-color: var(--pine); } .t-move strong { color: var(--pine); }
 
 /* Filters */
@@ -83,6 +86,10 @@ tbody tr.active { background: #e8f0ed; box-shadow: inset 3px 0 0 var(--pine); }
 .c-watch { background: var(--watch-bg); color: var(--watch); }
 .c-overstock { background: var(--over-bg); color: var(--over); }
 .c-ok { background: var(--ok-bg); color: var(--ok); }
+.c-spike { background: var(--spike-bg); color: var(--spike); margin-left: 6px; }
+.alert { background: var(--spike-bg); border: 1px solid #e2c7e8; border-radius: 6px; padding: 10px 12px; margin: 0 0 14px; font-size: 14px; color: var(--ink); }
+.alert strong { display: block; color: var(--spike); }
+code { font-family: var(--mono); font-size: 0.92em; background: #eef2f0; padding: 1px 5px; border-radius: 4px; }
 
 /* Detail panel */
 .detail { padding: 18px 20px 20px; position: sticky; top: 16px; }

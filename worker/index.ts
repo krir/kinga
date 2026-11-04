@@ -1,5 +1,7 @@
 // Kinga Worker: serves the dashboard and one grounded AI endpoint.
 // The model only explains numbers the engine already computed; it never invents data.
+import { buildStock } from '../src/data'
+import { assess, suggestTransfers } from '../src/engine'
 
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> }
@@ -20,6 +22,7 @@ type Facts = {
   stockoutInDays: number | null
   risk: string
   trendPct: number
+  anomaly?: { ratio: number; z: number } | null
   transfers: { from: string; quantity: number; fromMonthsAfter: number }[]
 }
 
@@ -30,6 +33,8 @@ Explain a medicine stock-out risk to a county pharmacist in plain English.
 Rules:
 - Use ONLY the facts provided. Do not invent numbers, facilities or causes.
 - If you suggest possible reasons (e.g. seasonal malaria), label them as possibilities to verify.
+- If "anomaly" is present, say last month's use was unusually high and list the possibilities to check:
+  an outbreak, a reporting error, or diversion. Do not accuse anyone.
 - Give: (1) the situation in one sentence, (2) why it matters for patients, (3) up to three concrete next steps.
 - Under 120 words. No headings. Plain sentences or a short numbered list.
 - End with: "Verify against the latest stock card before acting."`
@@ -46,6 +51,28 @@ function valid(f: unknown): f is Facts {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
+
+    // Open, read-only API so other systems (county dashboards, HMIS, i-LMIS) can pull Kinga's results
+    if (url.pathname === '/api/assessments') {
+      if (request.method !== 'GET') return json({ error: 'Use GET' }, 405)
+      const county = url.searchParams.get('county')
+      const risk = url.searchParams.get('risk')
+      const all = assess(buildStock())
+      const items = all
+        .filter((a) => !county || a.county.toLowerCase() === county.toLowerCase())
+        .filter((a) => !risk || a.risk === risk)
+        .map(({ history: _h, ...rest }) => rest)
+      return new Response(
+        JSON.stringify({
+          dataset: 'synthetic',
+          generatedAt: new Date().toISOString(),
+          count: items.length,
+          items,
+          transfers: suggestTransfers(all).filter((t) => !county || t.county.toLowerCase() === county.toLowerCase()),
+        }),
+        { headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'cache-control': 'max-age=300' } },
+      )
+    }
 
     if (url.pathname === '/api/explain') {
       if (request.method !== 'POST') return json({ error: 'Use POST' }, 405)

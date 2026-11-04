@@ -20,6 +20,7 @@ export type Assessment = {
   risk: Risk
   trendPct: number // change of recent 3 months vs previous 3
   history: number[]
+  anomaly: { ratio: number; z: number } | null // last month far above normal
 }
 
 export type Transfer = {
@@ -66,6 +67,18 @@ function daysToStockout(stock: number, forecast: number[]): number | null {
   return null // lasts beyond the forecast horizon
 }
 
+// Flag last month when it sits far above the previous eleven (seasonally adjusted).
+// A spike can mean an outbreak, a data-entry error or diversion: it is a prompt to investigate, not a verdict.
+export function detectSpike(adjusted: number[]): { ratio: number; z: number } | null {
+  const base = adjusted.slice(0, -1)
+  const last = adjusted[adjusted.length - 1]
+  const mean = base.reduce((a, b) => a + b, 0) / base.length
+  const sd = Math.sqrt(base.reduce((a, b) => a + (b - mean) ** 2, 0) / base.length) || 1
+  const z = (last - mean) / sd
+  const ratio = last / mean
+  return z >= 3 && ratio >= 1.6 ? { ratio: round1(ratio), z: round1(z) } : null
+}
+
 export function classify(mos: number, lead: number): Risk {
   if (mos < lead) return 'critical' // runs out before a normal order can arrive
   if (mos < lead + 0.5) return 'high'
@@ -103,6 +116,7 @@ export function assess(records: StockRecord[]): Assessment[] {
       risk: classify(mos, f.leadTimeMonths),
       trendPct: prior > 0 ? Math.round(((recentAdj - prior) / prior) * 100) : 0,
       history: r.history,
+      anomaly: detectSpike(adj),
     }
   })
 }
@@ -165,6 +179,7 @@ export function ruleSummary(a: Assessment, transfers: Transfer[]): string {
     `${a.facilityName} (${a.county}) holds ${a.stockOnHand} ${a.unit} of ${a.commodityName}, about ${a.monthsOfStock} months of stock against forecast demand.`,
     `At the forecast rate it would run out ${when}; a normal resupply takes ${a.leadTimeMonths} ${a.leadTimeMonths === 1 ? 'month' : 'months'}.`,
   ]
+  if (a.anomaly) lines.push(`Last month's use was ${a.anomaly.ratio}× normal: check for an outbreak, a reporting error or diversion before resupplying.`)
   if (a.trendPct !== 0) lines.push(`Underlying consumption is ${a.trendPct > 0 ? 'up' : 'down'} ${Math.abs(a.trendPct)}% on the previous quarter.`)
   if (t.length) lines.push(`Suggested: transfer ${t.map((x) => `${x.quantity} ${x.unit} from ${x.from}`).join(' and ')}.`)
   else if (a.risk === 'critical' || a.risk === 'high') lines.push('No surplus found within the county — escalate an emergency order.')

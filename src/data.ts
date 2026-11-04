@@ -69,7 +69,7 @@ const levelScale = { Dispensary: 1, 'Health Centre': 2.2, 'Sub-County Hospital':
 const baseDemand: Record<string, number> = { al: 40, amox: 55, ors: 30, oxy: 25, tld: 60, dmpa: 35 }
 
 // A few scripted situations so the demo shows every risk level clearly
-const scenarios: Record<string, { trend?: number; stockMonths?: number }> = {
+const scenarios: Record<string, { trend?: number; stockMonths?: number; lastMonthSpike?: number }> = {
   'K-03:al': { trend: 0.06, stockMonths: 0.6 }, // rising malaria cases, low stock → critical
   'K-04:al': { stockMonths: 5.5 }, // nearby surplus of AL
   'B-02:tld': { trend: 0.04, stockMonths: 1.2 }, // ART enrolment growing → high
@@ -79,6 +79,8 @@ const scenarios: Record<string, { trend?: number; stockMonths?: number }> = {
   'K-02:amox': { stockMonths: 1.8 }, // watch
   'N-02:dmpa': { stockMonths: 2.1 },
   'B-03:ors': { stockMonths: 9 }, // overstock / expiry risk
+  'B-02:ors': { lastMonthSpike: 2.7 }, // sudden diarrhoeal-disease signal
+  'N-02:amox': { lastMonthSpike: 2.3 }, // unexplained jump: outbreak or diversion?
 }
 
 export function buildStock(): StockRecord[] {
@@ -93,7 +95,8 @@ export function buildStock(): StockRecord[] {
       const history = months.map((_, m) => {
         const season = c.seasonal ? seasonIndex[m] : 1
         const noise = 0.9 + rand() * 0.2
-        return Math.max(1, Math.round(base * season * (1 + trend * m) * noise))
+        const spike = m === months.length - 1 && sc.lastMonthSpike ? sc.lastMonthSpike : 1
+        return Math.max(1, Math.round(base * season * (1 + trend * m) * noise * spike))
       })
       const recent = history.slice(-3).reduce((a, b) => a + b, 0) / 3
       const stockMonths = sc.stockMonths ?? 2.5 + rand() * 2.5

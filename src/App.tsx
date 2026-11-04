@@ -52,7 +52,7 @@ export default function App() {
   const filtered = items
     .filter((a) => county === 'All counties' || a.county === county)
     .filter((a) => commodity === 'all' || a.commodityId === commodity)
-    .filter((a) => showAll || a.risk !== 'ok')
+    .filter((a) => showAll || a.risk !== 'ok' || a.anomaly)
     .sort((a, b) => riskOrder[a.risk] - riskOrder[b.risk] || a.monthsOfStock - b.monthsOfStock)
 
   const scope = items.filter((a) => county === 'All counties' || a.county === county)
@@ -80,6 +80,7 @@ export default function App() {
       stockoutInDays: a.stockoutInDays,
       risk: a.risk,
       trendPct: a.trendPct,
+      anomaly: a.anomaly,
       transfers: transfers
         .filter((t) => t.to === a.facilityName && t.commodityId === a.commodityId)
         .map((t) => ({ from: t.from, quantity: t.quantity, fromMonthsAfter: t.fromMonthsAfter })),
@@ -120,6 +121,7 @@ export default function App() {
         <div className="tile t-high"><strong>{count('high')}</strong><span>High: less than half a month of buffer</span></div>
         <div className="tile t-watch"><strong>{count('watch')}</strong><span>Watch: under 2.5 months of stock</span></div>
         <div className="tile t-over"><strong>{count('overstock')}</strong><span>Overstock: over 6 months, expiry risk</span></div>
+        <div className="tile t-spike"><strong>{scope.filter((a) => a.anomaly).length}</strong><span>Unusual spikes: investigate</span></div>
         <div className="tile t-move"><strong>{scopeTransfers.length}</strong><span>Suggested transfers within county</span></div>
       </section>
 
@@ -160,7 +162,7 @@ export default function App() {
                   return (
                     <tr key={key} className={active ? 'active' : ''} onClick={() => select(a)} tabIndex={0}
                       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && select(a)}>
-                      <td><span className={`chip c-${a.risk}`}>{riskLabel[a.risk]}</span></td>
+                      <td><span className={`chip c-${a.risk}`}>{riskLabel[a.risk]}</span>{a.anomaly && <span className="chip c-spike">Spike ×{a.anomaly.ratio}</span>}</td>
                       <td>{a.facilityName}<small>{a.county} · {a.level}</small><small className="m-only">{a.commodityName}</small></td>
                       <td className="d-only">{a.commodityName}</td>
                       <td className="num">{a.stockOnHand.toLocaleString()}</td>
@@ -183,6 +185,13 @@ export default function App() {
               <span className={`chip c-${selected.risk}`}>{riskLabel[selected.risk]}</span>
               <h2>{selected.commodityName}</h2>
               <p className="where">{selected.facilityName} · {selected.county} · {selected.level}</p>
+
+              {selected.anomaly && (
+                <div className="alert" role="note">
+                  <strong>Unusual spike: last month was {selected.anomaly.ratio}× normal use.</strong>
+                  Check for a disease outbreak, a reporting error or diversion before resupplying.
+                </div>
+              )}
 
               <dl className="facts">
                 <div><dt>Stock on hand</dt><dd>{selected.stockOnHand} {selected.unit}</dd></div>
@@ -238,7 +247,12 @@ export default function App() {
         <p>
           <strong>How it works.</strong> Months of stock = stock on hand ÷ forecast demand. An item is critical when it would
           run out before a normal resupply can arrive. Transfers move surplus within a county, never leaving a donor below
-          three months. The assistant only explains computed figures; people make the decisions.
+          three months. Spikes flag a month far above normal (an outbreak, a reporting error or diversion) for
+          investigation. The assistant only explains computed figures; people make the decisions.
+        </p>
+        <p>
+          <strong>Open API.</strong> Other systems can pull results as JSON from <code>/api/assessments</code>
+          (filters: <code>?county=Kericho</code>, <code>?risk=critical</code>).
         </p>
         <p>Synthetic data for demonstration · Built by Kennedy Korir</p>
       </footer>
